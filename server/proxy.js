@@ -182,7 +182,7 @@ const server = http.createServer((req, res) => {
 
   // Health check
   if (req.method === 'GET' && req.url === '/health') {
-    sendJson(res, 200, { status: 'ok', port: PORT });
+    sendJson(res, 200, { status: 'ok', port: PORT, mode: IS_LOCAL ? 'local' : 'cloud' });
     return;
   }
 
