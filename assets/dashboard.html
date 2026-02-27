@@ -555,7 +555,7 @@
         </svg>
       </button>
     </div>
-    <span class="stats" id="stats">Enter API key to load memories</span>
+    <span class="stats" id="stats">Checking server mode...</span>
   </div>
 
   <div id="progress-view">
@@ -595,6 +595,7 @@
     let filteredMemories = [];
     let apiKey = '';
     let proxyAvailable = false;
+    let isLocalMode = false;
 
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
@@ -724,7 +725,14 @@
     async function checkProxy() {
       try {
         const response = await fetch(`${PROXY_URL}/health`, { method: 'GET' });
-        proxyAvailable = response.ok;
+        if (response.ok) {
+          proxyAvailable = true;
+          const data = await response.json();
+          // Check if running in local mode (no API key required)
+          isLocalMode = data.mode === 'local';
+        } else {
+          proxyAvailable = false;
+        }
       } catch {
         proxyAvailable = false;
       }
@@ -743,6 +751,24 @@
         return;
       }
 
+      // Local mode: hide API key input and auto-load
+      if (isLocalMode) {
+        document.getElementById('api-key-input').style.display = 'none';
+        document.querySelector('label').style.display = 'none';
+        document.getElementById('load-btn').style.display = 'none';
+        document.getElementById('stats').textContent = 'Local mode - loading memories...';
+        // Update welcome message for local mode
+        document.getElementById('content').innerHTML = `
+          <div class="empty-state">
+            <h3>Welcome to EverMem Memory Hub</h3>
+            <p>Loading memories from your local EverMemOS server...</p>
+          </div>
+        `;
+        setTimeout(() => loadData(), 100);
+        return;
+      }
+
+      // Cloud mode: require API key
       if (keyFromUrl) {
         document.getElementById('api-key-input').value = keyFromUrl;
         setTimeout(() => loadData(), 100);
@@ -757,12 +783,17 @@
       let hasMore = true;
 
       while (hasMore) {
+        const headers = {
+          'Content-Type': 'application/json'
+        };
+        // Only add Authorization header if apiKey is set (cloud mode)
+        if (apiKey) {
+          headers['Authorization'] = `Bearer ${apiKey}`;
+        }
+
         const response = await fetch(`${PROXY_URL}/api/v0/memories`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
+          headers: headers,
           body: JSON.stringify({
             user_id: 'claude-code-user',
             memory_type: 'episodic_memory',
@@ -801,19 +832,23 @@
       }
 
       apiKey = document.getElementById('api-key-input').value.trim();
-      if (!apiKey) {
+      // Local mode: API key is optional
+      if (!apiKey && !isLocalMode) {
         alert('Please enter an API key');
         return;
       }
 
       const loadBtn = document.getElementById('load-btn');
-      loadBtn.disabled = true;
-      loadBtn.textContent = 'Loading...';
+      if (loadBtn) {
+        loadBtn.disabled = true;
+        loadBtn.textContent = 'Loading...';
+      }
 
+      const loadingText = isLocalMode ? 'Loading memories from local server...' : 'Loading memories from EverMem Cloud...';
       document.getElementById('content').innerHTML = `
         <div class="loading-message">
           <div class="spinner"></div>
-          <p>Loading memories from EverMem Cloud...</p>
+          <p>${loadingText}</p>
         </div>
       `;
 
@@ -823,10 +858,13 @@
         filteredMemories = [...memories];
 
         if (memories.length === 0) {
+          const noMemoriesText = isLocalMode
+            ? 'No memories found in your local EverMemOS. Start using Claude Code with the EverMem plugin to build your memory.'
+            : "Your EverMem account doesn't have any memories yet. Start using Claude Code with the EverMem plugin to build your memory.";
           document.getElementById('content').innerHTML = `
             <div class="empty-state">
               <h3>No Memories Found</h3>
-              <p>Your EverMem account doesn't have any memories yet. Start using Claude Code with the EverMem plugin to build your memory.</p>
+              <p>${noMemoriesText}</p>
             </div>
           `;
           document.getElementById('stats').textContent = '0 memories';
@@ -846,8 +884,10 @@
           </div>
         `;
       } finally {
-        loadBtn.disabled = false;
-        loadBtn.textContent = 'Load';
+        if (loadBtn) {
+          loadBtn.disabled = false;
+          loadBtn.textContent = 'Load';
+        }
       }
     }
 
