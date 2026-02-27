@@ -19,6 +19,7 @@ import { isConfigured } from './utils/config.js';
 import { searchMemories, transformSearchResults } from './utils/evermem-api.js';
 import { formatRelativeTime } from './utils/mock-store.js';
 import { debug, setDebugPrefix } from './utils/debug.js';
+import { containsForceMemorizeKeyword, extractMemorizeContent, forceMemorize } from './force-memorize.js';
 
 // Set debug prefix for this script
 setDebugPrefix('inject');
@@ -70,6 +71,36 @@ async function main() {
     // Set cwd from hook input for config.getGroupId()
     if (data.cwd) {
       process.env.EVERMEM_CWD = data.cwd;
+    }
+
+    // Check for force memorize keywords
+    if (containsForceMemorizeKeyword(prompt)) {
+      debug('Force memorize keyword detected');
+
+      if (!isConfigured()) {
+        console.log(JSON.stringify({
+          systemMessage: '⚠️ EverMem is not configured. Please set EVERMEM_API_URL.',
+        }));
+        process.exit(0);
+      }
+
+      // Extract content after keyword
+      const content = extractMemorizeContent(prompt) || prompt;
+
+      // Force save the memory
+      const result = await forceMemorize(content, 'user');
+
+      if (result.ok) {
+        console.log(JSON.stringify({
+          systemMessage: '💾 Force saved to EverMemOS.',
+          additionalContext: 'The user has explicitly requested to remember this. Treat this as important context.',
+        }));
+      } else {
+        console.log(JSON.stringify({
+          systemMessage: '⚠️ Failed to save memory. Check EverMemOS connection.',
+        }));
+      }
+      process.exit(0);
     }
 
     // Skip short prompts silently

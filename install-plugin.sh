@@ -168,6 +168,11 @@ show_usage() {
       /evermem:hub       - Open Memory Hub dashboard
       /evermem:session   - Show current session memory
       /evermem:forget    - Clear current session memory
+      /remember          - Force save current conversation as memory
+
+   3. Force Remember:
+      Say "帮我记一下..." or "remember this..." in your message
+      to immediately save content without waiting for auto-extraction
 
 📁 Plugin Location:
    $SCRIPT_DIR

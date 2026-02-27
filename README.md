@@ -13,6 +13,7 @@ Persistent memory for Claude Code. Automatically saves and recalls context from 
 - **Session Context** - Recent work summary loaded on session start
 - **Memory Search** - Manually search your memory history
 - **Memory Hub** - Visual dashboard to explore and manage memories
+- **Force Remember** - Explicitly save important information with keywords or command
 
 ## Quick Install
 
@@ -80,6 +81,7 @@ Run `/evermem:help` to check if the plugin is configured correctly.
 | `/evermem:hub` | Open the Memory Hub dashboard |
 | `/evermem:debug` | View debug logs for troubleshooting |
 | `/evermem:projects` | View your Claude Code projects table |
+| `/remember [content]` | Force save current conversation or content as memory |
 
 ### Automatic Behavior
 
@@ -119,6 +121,37 @@ The Memory Hub provides a visual interface to explore your memories:
 - Load more pagination for large projects
 
 To use the hub, run `/evermem:hub` and follow the instructions.
+
+### Force Remember
+
+Sometimes you want to explicitly save important information without waiting for automatic extraction. Use **Force Remember** in two ways:
+
+**1. Keywords in your message:**
+```
+You: "帮我记一下：这个API的密钥要放在环境变量里"
+         ↓
+💾 Force saved to EverMemOS.
+
+You: "remember this: The database schema uses UUIDs for primary keys"
+         ↓
+💾 Force saved to EverMemOS.
+```
+
+Supported keywords:
+- Chinese: `帮我记一下`, `帮我记住`, `记住这个`, `强制记忆`, `记一下`, `记录一下`
+- English: `force remember`, `remember this`, `save this`, `note this down`, `write this down`
+
+**2. Slash command:**
+```
+/remember
+```
+This saves the last conversation turn immediately.
+
+**Use cases:**
+- Save an important decision or conclusion
+- Record a code snippet or configuration
+- Mark a task as completed
+- Save context before switching topics
 
 ## Configuration
 
