@@ -590,7 +590,9 @@
   </div>
 
   <script>
-    const PROXY_URL = window.location.protocol === 'file:' ? 'http://localhost:3456' : '';
+    const PROXY_URL = (window.location.protocol === 'file:' || window.location.host === 'localhost:3456')
+      ? 'http://localhost:3456'
+      : '';
     let memories = [];
     let filteredMemories = [];
     let apiKey = '';
@@ -951,7 +953,7 @@
 
         return {
           id: mem.id || mem.message_id || `mem_${i}`,
-          content: mem.episode || mem.content || '',
+          content: mem.episode || mem.content || mem.summary || '',
           subject: mem.subject || '',
           groupId: mem.group_id || '',
           participants: mem.participants || [],

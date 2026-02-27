@@ -31,9 +31,10 @@ async function main() {
     console.log(`Group: ${config.groupId}`);
     console.log('');
 
+    // Use vector search for better semantic matching
     const apiResponse = await searchMemories(query, {
       topK: 10,
-      retrieveMethod: 'hybrid'
+      retrieveMethod: 'vector'
     });
 
     // Debug: show raw API response

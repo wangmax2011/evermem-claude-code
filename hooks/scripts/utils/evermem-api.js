@@ -118,28 +118,31 @@ export function transformSearchResults(apiResponse) {
 
   const memories = [];
   const result = apiResponse.result;
-  const memoryList = result.memories || [];
+  const memoryGroups = result.memories || [];
 
-  // API returns: memories[].episode for content, memories[].subject for title, memories[].score for relevance
-  for (let i = 0; i < memoryList.length; i++) {
-    const mem = memoryList[i];
+  // API returns: memories is an array of objects where keys are group_ids
+  // and values are arrays of memories
+  for (const group of memoryGroups) {
+    for (const [groupId, memoryList] of Object.entries(group)) {
+      for (const mem of memoryList) {
+        // Use episode as the content
+        const content = mem.episode || '';
+        if (!content) continue;
 
-    // Use episode as the content
-    const content = mem.episode || '';
-    if (!content) continue;
-
-    memories.push({
-      text: content,
-      subject: mem.subject || '',  // Title for display
-      timestamp: mem.timestamp || new Date().toISOString(),
-      memoryType: mem.memory_type,  // Keep raw type if needed
-      score: mem.score || 0,  // Score is now inside each memory object
-      metadata: {
-        groupId: mem.group_id,
-        type: mem.type,
-        participants: mem.participants
+        memories.push({
+          text: content,
+          subject: mem.subject || '',  // Title for display
+          timestamp: mem.timestamp || new Date().toISOString(),
+          memoryType: mem.memory_type,  // Keep raw type if needed
+          score: mem.score || 0,  // Score is now inside each memory object
+          metadata: {
+            groupId: mem.group_id || groupId,
+            type: mem.type,
+            participants: mem.participants
+          }
+        });
       }
-    });
+    }
   }
 
   // Sort by score descending

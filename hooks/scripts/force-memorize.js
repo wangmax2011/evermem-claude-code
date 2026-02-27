@@ -256,4 +256,4 @@ if (process.argv[1] === import.meta.url.slice(7)) {
   main();
 }
 
-export { forceMemorize, extractMemorizeContent };
+export { forceMemorize };

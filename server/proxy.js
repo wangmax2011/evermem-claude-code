@@ -52,7 +52,9 @@ function getGroupsForKey(keyId) {
       try {
         const entry = JSON.parse(line);
         // Only include entries matching this keyId
-        if (entry.keyId !== keyId) continue;
+        // Local mode: accept null keyId as well
+        if (keyId !== 'local' && entry.keyId !== keyId) continue;
+        if (keyId === 'local' && entry.keyId !== null && entry.keyId !== 'local') continue;
 
         const existing = groupMap.get(entry.groupId);
         if (existing) {
@@ -121,8 +123,23 @@ const server = http.createServer((req, res) => {
       }
 
       try {
+        // Parse and transform body for local mode
+        let requestBody = JSON.parse(body);
+
+        // Local mode: convert page/page_size to limit/offset
+        if (IS_LOCAL) {
+          if (requestBody.page_size !== undefined) {
+            requestBody.limit = requestBody.page_size;
+            delete requestBody.page_size;
+          }
+          if (requestBody.page !== undefined) {
+            requestBody.offset = (requestBody.page - 1) * (requestBody.limit || 100);
+            delete requestBody.page;
+          }
+        }
+
         // Forward as GET with body using curl
-        const jsonBody = body.replace(/'/g, "'\\''");
+        const jsonBody = JSON.stringify(requestBody).replace(/'/g, "'\\''");
         const apiVersion = IS_LOCAL ? 'v1' : 'v0';
         const authHeaderStr = authHeader ? `-H "Authorization: ${authHeader}"` : '';
         const curlCmd = `curl -s -X GET "${API_BASE}/api/${apiVersion}/memories" ${authHeaderStr} -H "Content-Type: application/json" -d '${jsonBody}'`;
