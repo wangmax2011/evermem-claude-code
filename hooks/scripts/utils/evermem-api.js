@@ -27,7 +27,7 @@ function debugLog(msg, data = null) {
 }
 
 /**
- * Search memories from EverMem Cloud
+ * Search memories from EverMemOS (local or cloud)
  * @param {string} query - Search query text
  * @param {Object} options - Additional options
  * @param {number} options.topK - Max results (default: 10)
@@ -36,10 +36,6 @@ function debugLog(msg, data = null) {
  */
 export async function searchMemories(query, options = {}) {
   const config = getConfig();
-
-  if (!config.isConfigured) {
-    throw new Error('EverMem API key not configured');
-  }
 
   const {
     topK = 10,
@@ -51,20 +47,18 @@ export async function searchMemories(query, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    // Build request body (API uses GET with body - need curl since fetch doesn't support it)
+    // Build request body for local EverMemOS API
     const requestBody = {
       query,
+      user_id: config.userId || 'claude-code-user',
       retrieve_method: retrieveMethod,
       top_k: topK,
       include_metadata: true,
       memory_types: memoryTypes
     };
-    // Scope to user and group
-    if (config.userId) {
-      requestBody.user_id = config.userId;
-    }
+    // Scope to group if available
     if (config.groupId) {
-      requestBody.group_ids = [config.groupId];
+      requestBody.group_id = config.groupId;
     }
     debug('searchMemories request body', requestBody);
     clearTimeout(timeoutId);
@@ -72,7 +66,11 @@ export async function searchMemories(query, options = {}) {
     // Use curl since Node.js fetch doesn't support GET with body
     // Escape single quotes in JSON for shell safety: ' -> '\''
     const jsonBody = JSON.stringify(requestBody).replace(/'/g, "'\\''");
-    const curlCmd = `curl -s -X GET "${config.apiBaseUrl}/api/v0/memories/search" -H "Authorization: Bearer ${config.apiKey}" -H "Content-Type: application/json" -d '${jsonBody}'`;
+
+    // Local API: no auth header needed; Cloud API: include auth header
+    const isLocal = config.apiBaseUrl === 'http://localhost:1995';
+    const authHeader = isLocal ? '' : `-H "Authorization: Bearer ${config.apiKey}"`;
+    const curlCmd = `curl -s -X GET "${config.apiBaseUrl}/api/v1/memories/search" ${authHeader} -H "Content-Type: application/json" -d '${jsonBody}'`;
 
     // Return debug info along with result
     let result, data;
@@ -152,7 +150,7 @@ export function transformSearchResults(apiResponse) {
 
 
 /**
- * Add a memory to EverMem Cloud
+ * Add a memory to EverMemOS (local or cloud)
  * @param {Object} message - Message to store
  * @param {string} message.content - Message content
  * @param {string} message.role - 'user' or 'assistant'
@@ -162,11 +160,7 @@ export function transformSearchResults(apiResponse) {
 export async function addMemory(message) {
   const config = getConfig();
 
-  if (!config.isConfigured) {
-    throw new Error('EverMem API key not configured');
-  }
-
-  const url = `${config.apiBaseUrl}/api/v0/memories`;
+  const url = `${config.apiBaseUrl}/api/v1/memories`;
   const requestBody = {
     message_id: message.messageId || generateMessageId(),
     create_time: new Date().toISOString(),
@@ -181,13 +175,19 @@ export async function addMemory(message) {
   // Make the actual API call
   let response, responseText, responseData, status, ok;
 
+  // Build headers - local mode doesn't need auth
+  const isLocal = config.apiBaseUrl === 'http://localhost:1995';
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (!isLocal && config.apiKey) {
+    headers['Authorization'] = `Bearer ${config.apiKey}`;
+  }
+
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify(requestBody)
     });
     status = response.status;
@@ -221,7 +221,7 @@ function generateMessageId() {
 }
 
 /**
- * Get memories from EverMem Cloud (ordered by time, old to new)
+ * Get memories from EverMemOS (local or cloud)
  * @param {Object} options - Options
  * @param {number} options.page - Page number (default: 1)
  * @param {number} options.pageSize - Results per page (default: 100, max: 100)
@@ -231,37 +231,45 @@ function generateMessageId() {
 export async function getMemories(options = {}) {
   const config = getConfig();
 
-  if (!config.isConfigured) {
-    throw new Error('EverMem API key not configured');
-  }
-
   const {
     page = 1,
     pageSize = 100,
     memoryType = 'episodic_memory'
   } = options;
 
-  // Build query params
+  // Build query params - use limit/offset for local API, page/page_size for cloud
+  const isLocal = config.apiBaseUrl === 'http://localhost:1995';
   const params = new URLSearchParams({
-    user_id: config.userId,
-    memory_type: memoryType,
-    page: page.toString(),
-    page_size: pageSize.toString()
+    user_id: config.userId || 'claude-code-user',
+    memory_type: memoryType
   });
 
-  if (config.groupId) {
-    params.append('group_ids', [config.groupId]);
+  if (isLocal) {
+    params.append('limit', pageSize.toString());
+    params.append('offset', ((page - 1) * pageSize).toString());
+  } else {
+    params.append('page', page.toString());
+    params.append('page_size', pageSize.toString());
   }
 
-  const url = `${config.apiBaseUrl}/api/v0/memories?${params}`;
+  if (config.groupId) {
+    params.append(isLocal ? 'group_id' : 'group_ids', isLocal ? config.groupId : [config.groupId]);
+  }
+
+  const url = `${config.apiBaseUrl}/api/v1/memories?${params}`;
+
+  // Build headers - local mode doesn't need auth
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (!isLocal && config.apiKey) {
+    headers['Authorization'] = `Bearer ${config.apiKey}`;
+  }
 
   try {
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     if (!response.ok) {

@@ -19,7 +19,9 @@ import { createHash } from 'crypto';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const PORT = process.env.EVERMEM_PROXY_PORT || 3456;
-const API_BASE = 'https://api.evermind.ai';
+// Support both local EverMemOS and cloud API
+const API_BASE = process.env.EVERMEM_API_URL || 'http://localhost:1995';
+const IS_LOCAL = API_BASE === 'http://localhost:1995';
 const GROUPS_FILE = join(__dirname, '..', 'data', 'groups.jsonl');
 
 /**
@@ -104,15 +106,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Handle POST /api/v0/memories (list) - forwards as GET with body
-  if (req.method === 'POST' && req.url === '/api/v0/memories') {
+  // Handle POST /api/v0/memories or /api/v1/memories (list) - forwards as GET with body
+  if (req.method === 'POST' && (req.url === '/api/v0/memories' || req.url === '/api/v1/memories')) {
     let body = '';
 
     req.on('data', chunk => { body += chunk; });
 
     req.on('end', () => {
       const authHeader = req.headers['authorization'];
-      if (!authHeader) {
+      // Local mode: auth is optional
+      if (!IS_LOCAL && !authHeader) {
         sendJson(res, 401, { error: 'Missing Authorization header' });
         return;
       }
@@ -120,7 +123,9 @@ const server = http.createServer((req, res) => {
       try {
         // Forward as GET with body using curl
         const jsonBody = body.replace(/'/g, "'\\''");
-        const curlCmd = `curl -s -X GET "${API_BASE}/api/v0/memories" -H "Authorization: ${authHeader}" -H "Content-Type: application/json" -d '${jsonBody}'`;
+        const apiVersion = IS_LOCAL ? 'v1' : 'v0';
+        const authHeaderStr = authHeader ? `-H "Authorization: ${authHeader}"` : '';
+        const curlCmd = `curl -s -X GET "${API_BASE}/api/${apiVersion}/memories" ${authHeaderStr} -H "Content-Type: application/json" -d '${jsonBody}'`;
 
         const result = execSync(curlCmd, { timeout: 30000, encoding: 'utf8' });
         const data = JSON.parse(result);
@@ -138,15 +143,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Handle POST /api/v0/memories/search - forwards as GET with body
-  if (req.method === 'POST' && req.url === '/api/v0/memories/search') {
+  // Handle POST /api/v0/memories/search or /api/v1/memories/search - forwards as GET with body
+  if (req.method === 'POST' && (req.url === '/api/v0/memories/search' || req.url === '/api/v1/memories/search')) {
     let body = '';
 
     req.on('data', chunk => { body += chunk; });
 
     req.on('end', () => {
       const authHeader = req.headers['authorization'];
-      if (!authHeader) {
+      // Local mode: auth is optional
+      if (!IS_LOCAL && !authHeader) {
         sendJson(res, 401, { error: 'Missing Authorization header' });
         return;
       }
@@ -154,7 +160,9 @@ const server = http.createServer((req, res) => {
       try {
         // Forward as GET with body using curl
         const jsonBody = body.replace(/'/g, "'\\''");
-        const curlCmd = `curl -s -X GET "${API_BASE}/api/v0/memories/search" -H "Authorization: ${authHeader}" -H "Content-Type: application/json" -d '${jsonBody}'`;
+        const apiVersion = IS_LOCAL ? 'v1' : 'v0';
+        const authHeaderStr = authHeader ? `-H "Authorization: ${authHeader}"` : '';
+        const curlCmd = `curl -s -X GET "${API_BASE}/api/${apiVersion}/memories/search" ${authHeaderStr} -H "Content-Type: application/json" -d '${jsonBody}'`;
 
         const result = execSync(curlCmd, { timeout: 30000, encoding: 'utf8' });
         const data = JSON.parse(result);
@@ -178,23 +186,30 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Get groups for the current API key
+  // Get groups for the current API key (or all groups in local mode)
   if (req.method === 'GET' && req.url === '/api/groups') {
     const authHeader = req.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      sendJson(res, 401, { error: 'Missing or invalid Authorization header' });
-      return;
+    // Local mode: auth is optional, use a default keyId
+    let keyId;
+    if (IS_LOCAL) {
+      keyId = 'local';
+    } else {
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        sendJson(res, 401, { error: 'Missing or invalid Authorization header' });
+        return;
+      }
+      const apiKey = authHeader.replace('Bearer ', '');
+      keyId = computeKeyId(apiKey);
     }
 
-    const apiKey = authHeader.replace('Bearer ', '');
-    const keyId = computeKeyId(apiKey);
     const groups = getGroupsForKey(keyId);
 
     sendJson(res, 200, {
       status: 'ok',
       keyId,
       groups,
-      totalGroups: groups.length
+      totalGroups: groups.length,
+      mode: IS_LOCAL ? 'local' : 'cloud'
     });
     return;
   }
@@ -233,6 +248,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`EverMem Dashboard Proxy running on http://localhost:${PORT}`);
+  console.log(`API Backend: ${API_BASE} (${IS_LOCAL ? 'local' : 'cloud'} mode)`);
   console.log('');
   console.log('The dashboard can now connect to this proxy to fetch memories.');
   console.log('Press Ctrl+C to stop.');

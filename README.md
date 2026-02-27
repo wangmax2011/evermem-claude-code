@@ -2,6 +2,8 @@
 
 Persistent memory for Claude Code. Automatically saves and recalls context from past coding sessions.
 
+> **🎉 新增：本地 EverMemOS 支持！** 现在你可以使用完全本地托管的 EverMemOS 服务，无需云账号。详见 [LOCAL_SETUP.md](LOCAL_SETUP.md)。
+
 ![Memory Hub Screenshot](assets/hub-screenshot.png)
 
 ## Features

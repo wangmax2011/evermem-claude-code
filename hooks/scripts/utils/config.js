@@ -27,7 +27,7 @@ if (existsSync(envPath)) {
   }
 }
 
-const API_BASE_URL = 'https://api.evermind.ai';
+const API_BASE_URL = 'http://localhost:1995';
 
 /**
  * Get the EverMem API key from environment
@@ -81,9 +81,16 @@ export function getApiBaseUrl() {
 
 /**
  * Check if the plugin is properly configured
- * @returns {boolean} True if API key is set
+ * For local EverMemOS mode, always returns true
+ * For cloud mode, checks if API key is set
+ * @returns {boolean} True if configured
  */
 export function isConfigured() {
+  // Local mode: no API key needed
+  if (getApiBaseUrl() === 'http://localhost:1995' || !getApiKey()) {
+    return true;
+  }
+  // Cloud mode: requires API key
   return !!getApiKey();
 }
 
