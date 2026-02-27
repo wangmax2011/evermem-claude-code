@@ -16,7 +16,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { isConfigured, getConfig } from './utils/config.js';
-import { addMemory } from './utils/evermem-api.js';
+import { addMemory, forceAddMemory } from './utils/evermem-api.js';
 import { debug, setDebugPrefix } from './utils/debug.js';
 
 // Set debug prefix for this script
@@ -142,12 +142,10 @@ async function extractLastTurnFromTranscript(transcriptPath) {
 }
 
 /**
- * Force save a memory immediately
+ * Force save a memory immediately (with immediate extraction)
  */
 async function forceMemorize(content, role = 'user', options = {}) {
-  const config = getConfig();
-
-  const result = await addMemory({
+  const result = await forceAddMemory({
     content: content,
     role: role,
     messageId: `force_${Date.now()}`,

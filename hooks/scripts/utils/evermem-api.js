@@ -213,6 +213,70 @@ export async function addMemory(message) {
 }
 
 /**
+ * Force add a memory immediately (bypasses boundary detection, extracts immediately)
+ * @param {Object} message - Message to store
+ * @param {string} message.content - Message content
+ * @param {string} message.role - 'user' or 'assistant'
+ * @param {string} message.messageId - Unique message ID
+ * @returns {Promise<Object>} API response
+ */
+export async function forceAddMemory(message) {
+  const config = getConfig();
+
+  // Use the /immediate endpoint for force extraction
+  const url = `${config.apiBaseUrl}/api/v1/memories/immediate`;
+  const requestBody = {
+    message_id: message.messageId || generateMessageId(),
+    create_time: new Date().toISOString(),
+    sender: message.role === 'assistant' ? 'claude-assistant' : config.userId,
+    sender_name: message.role === 'assistant' ? 'Claude' : 'User',
+    role: message.role || 'user',
+    content: message.content,
+    group_id: config.groupId,
+    group_name: 'Claude Code Session'
+  };
+
+  // Make the API call
+  let response, responseText, responseData, status, ok;
+
+  // Build headers - local mode doesn't need auth
+  const isLocal = config.apiBaseUrl === 'http://localhost:1995';
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (!isLocal && config.apiKey) {
+    headers['Authorization'] = `Bearer ${config.apiKey}`;
+  }
+
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
+    });
+    status = response.status;
+    ok = response.ok;
+    responseText = await response.text();
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {}
+  } catch (fetchError) {
+    status = 0;
+    ok = false;
+    responseText = fetchError.message;
+  }
+
+  // Always return full info for debugging
+  return {
+    url,
+    body: requestBody,
+    status,
+    ok,
+    response: responseData || responseText
+  };
+}
+
+/**
  * Generate a unique message ID
  * @returns {string} Message ID
  */
