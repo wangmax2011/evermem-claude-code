@@ -69,6 +69,83 @@ claude plugin update evermem@evermem
 
 Run `/evermem:help` to check if the plugin is configured correctly.
 
+## Quick Start Example
+
+Here's a typical workflow showing how EverMem enhances your Claude Code experience:
+
+### Scenario: Building a Family Information System
+
+**Step 1: Save Important Information with Force Remember**
+
+```
+You: 帮我记一下：我的老婆是黄蓉
+Claude: 💾 Force saved 1 memory(s) to EverMemOS.
+
+You: 帮我记一下：我儿子是王致远
+Claude: 💾 Force saved 1 memory(s) to EverMemOS.
+
+You: remember this: My hometown is Huludao
+Claude: 💾 Force saved 1 memory(s) to EverMemOS.
+```
+
+**Step 2: Later, Search for Family Information**
+
+```
+You: /evermem:search 我的家庭成员有哪些？
+
+Searching EverMem Cloud...
+Query: "我的家庭成员有哪些？"
+Found 3 memories:
+======================================================================
+
+1. [Score: 0.92] 2026/2/27 16:30:15
+----------------------------------------------------------------------
+我的老婆是黄蓉
+
+2. [Score: 0.88] 2026/2/27 16:32:42
+----------------------------------------------------------------------
+我儿子是王致远
+
+3. [Score: 0.75] 2026/2/27 16:35:08
+----------------------------------------------------------------------
+My hometown is Huludao
+
+======================================================================
+```
+
+**Step 3: Open Memory Hub for Visual Overview**
+
+```
+You: /evermem:hub
+
+Memory Hub server started. Open this URL to view your memories:
+http://localhost:3456/
+```
+
+The Memory Hub dashboard shows:
+- **Activity Heatmap**: Your coding/memory activity over the last 6 months
+- **Statistics**: Total memories, projects, active days
+- **Project Groups**: Memories organized by project
+- **Timeline View**: Chronological view of all memories
+
+**Step 4: Automatic Memory Recall in New Sessions**
+
+When you start a new Claude Code session in the same project:
+
+```
+💡 EverMem: Last session (2h ago): "Saved family member information" | 3 memories
+```
+
+Your previous context is automatically loaded, so you can continue:
+
+```
+You: 帮我添加一个新的家庭成员信息
+Claude: I see you've been building a family information system. You previously saved information about
+your wife (黄蓉), son (王致远), and hometown (Huludao). What new family member would you like to add?
+```
+
+---
+
 ## Usage
 
 ### Commands
