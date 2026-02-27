@@ -1,7 +1,0 @@
-{
-  "name": "remember",
-  "description": "Force save current conversation as memory",
-  "type": "command",
-  "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/force-memorize-cli.js",
-  "timeout": 10
-}
